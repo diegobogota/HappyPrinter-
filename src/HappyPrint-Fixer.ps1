@@ -52,6 +52,10 @@ Write-Log 'Ensamblados WPF cargados'
 $script:Modelo   = 'L14150'
 $script:VidEpson = 'VID_04B8'
 
+# Constantes de auto-actualizacion y acceso directo
+$script:ScriptUrl = 'https://raw.githubusercontent.com/diegobogota/HappyPrinter-/main/src/HappyPrint-Fixer.ps1'
+$script:LocalScriptPath = Join-Path $env:TEMP 'HappyPrint-Fixer.ps1'
+
 # ------------------------------------------------------------------ XAML
 $xamlText = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -132,9 +136,14 @@ $xamlText = @'
             <Button Name="BtnSpooler" Content="Spooler" Background="#E5E5EA" Foreground="#1D1D1D" Margin="6,0,0,0"/>
           </UniformGrid>
 
-          <UniformGrid Columns="2" Margin="0,0,0,10">
+          <UniformGrid Columns="2" Margin="0,0,0,8">
             <Button Name="BtnCleanDriver" Content="Limpiar driver danado" Background="#FF9500" Foreground="White" Margin="0,0,6,0"/>
             <Button Name="BtnDriver" Content="Descargar driver" Background="#5856D6" Foreground="White" Margin="6,0,0,0"/>
+          </UniformGrid>
+
+          <UniformGrid Columns="2" Margin="0,0,0,10">
+            <Button Name="BtnUpdate" Content="Actualizar / Reiniciar app" Background="#8E8E93" Foreground="White" Margin="0,0,6,0"/>
+            <Button Name="BtnShortcut" Content="Crear acceso directo" Background="#E5E5EA" Foreground="#1D1D1D" Margin="6,0,0,0"/>
           </UniformGrid>
         </StackPanel>
       </ScrollViewer>
@@ -184,6 +193,8 @@ $BtnCleanDriver = $Window.FindName('BtnCleanDriver')
 $BtnDriver  = $Window.FindName('BtnDriver')
 $ProgressBar = $Window.FindName('ProgressBar')
 $ProgressLabel = $Window.FindName('ProgressLabel')
+$BtnUpdate = $Window.FindName('BtnUpdate')
+$BtnShortcut = $Window.FindName('BtnShortcut')
 
 # ------------------------------------------------------- UI: barra de progreso
 function Show-Progress {
@@ -509,6 +520,49 @@ function Invoke-CleanDamagedDriver {
     $FooterText.Text = "Limpieza de driver completada - $(Get-Date -Format 'HH:mm:ss')"
 }
 
+# ------------------------------------------------------- Auto-actualizacion
+function Invoke-SelfUpdate {
+    # Descarga la ultima version desde main y reinicia la app
+    Write-Log 'Auto-actualizacion: descargando ultima version'
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $script:ScriptUrl -OutFile $script:LocalScriptPath -UseBasicParsing
+        Write-Log 'Descarga completada'
+        # Relanza el script recien descargado, elevado, y cierra esta instancia
+        Start-Process powershell -Verb RunAs -ArgumentList @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit', '-File', $script:LocalScriptPath
+        )
+        Write-Log 'Relanzado: cerrando instancia actual'
+        $Window.Close()
+    } catch {
+        Write-Log ("Auto-actualizacion fallo: {0}" -f $_.Exception.Message)
+        $FooterText.Text = 'No se pudo actualizar (verifica internet). Reintenta.'
+        Hide-Progress
+    }
+}
+
+# ------------------------------------------------------- Acceso directo
+function New-DesktopShortcut {
+    # Crea un acceso directo en el Escritorio que abre la app con doble clic
+    Write-Log 'Creando acceso directo en el Escritorio'
+    try {
+        $desktop = [Environment]::GetFolderPath('Desktop')
+        $shortcutPath = Join-Path $desktop 'HappyPrint.lnk'
+        $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = 'powershell.exe'
+        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$script:LocalScriptPath`""
+        $shortcut.IconLocation = 'powershell.exe,0'
+        $shortcut.Description = 'HappyPrint - Detector y reparador de impresoras Epson'
+        $shortcut.Save()
+        Add-Finding -Text "Acceso directo creado: $shortcutPath" -State 'ok'
+        $FooterText.Text = "Acceso directo creado en el Escritorio - $(Get-Date -Format 'HH:mm:ss')"
+        Write-Log "Acceso directo creado: $shortcutPath"
+    } catch {
+        Write-Log ("Acceso directo fallo: {0}" -f $_.Exception.Message)
+        $FooterText.Text = 'No se pudo crear el acceso directo'
+    }
+}
+
 # ------------------------------------------------------- Descargar driver
 function Invoke-OpenDriverPage {
     # Abre el Download Center de Epson para la L14150 en el navegador del usuario
@@ -616,6 +670,26 @@ $BtnCleanDriver.Add_Click({
 
 $BtnDriver.Add_Click({
     Invoke-OpenDriverPage
+})
+
+$BtnUpdate.Add_Click({
+    $BtnUpdate.IsEnabled = $false
+    try {
+        Show-Progress 'Actualizando app...'
+        Invoke-SelfUpdate
+    } finally {
+        Hide-Progress
+        $BtnUpdate.IsEnabled = $true
+    }
+})
+
+$BtnShortcut.Add_Click({
+    $BtnShortcut.IsEnabled = $false
+    try {
+        New-DesktopShortcut
+    } finally {
+        $BtnShortcut.IsEnabled = $true
+    }
 })
 
 # ------------------------------------------------------- Inicio
