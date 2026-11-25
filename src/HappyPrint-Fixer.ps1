@@ -115,6 +115,11 @@ $xamlText = @'
             </StackPanel>
           </Border>
 
+          <TextBlock Name="ProgressLabel" Text="Trabajando..." FontSize="11" FontWeight="SemiBold" Foreground="#8E8E93"
+                     Margin="2,0,0,4" Visibility="Collapsed"/>
+          <ProgressBar Name="ProgressBar" Height="6" Minimum="0" Maximum="100" Value="0"
+                       Foreground="#007AFF" Background="#E5E5EA" Margin="0,0,0,10" IsIndeterminate="False"/>
+
           <TextBlock Text="DETALLES" FontSize="11" FontWeight="SemiBold" Foreground="#8E8E93" Margin="2,0,0,6"/>
           <Border CornerRadius="10" Background="White" Padding="12" Margin="0,0,0,14" MinHeight="140">
             <StackPanel Name="Findings"/>
@@ -177,8 +182,30 @@ $BtnSettings= $Window.FindName('BtnSettings')
 $BtnSpooler = $Window.FindName('BtnSpooler')
 $BtnCleanDriver = $Window.FindName('BtnCleanDriver')
 $BtnDriver  = $Window.FindName('BtnDriver')
+$ProgressBar = $Window.FindName('ProgressBar')
+$ProgressLabel = $Window.FindName('ProgressLabel')
 
-# ------------------------------------------------------- Utilidades UI
+# ------------------------------------------------------- UI: barra de progreso
+function Show-Progress {
+    param([string]$Label = 'Trabajando...')
+    $ProgressLabel.Text = $Label
+    $ProgressLabel.Visibility = 'Visible'
+    $ProgressBar.IsIndeterminate = $true
+    $ProgressBar.Visibility = 'Visible'
+}
+
+function Update-Progress {
+    param([string]$Label)
+    if ($Label) { $ProgressLabel.Text = $Label }
+}
+
+function Hide-Progress {
+    $ProgressBar.IsIndeterminate = $false
+    $ProgressBar.Value = 0
+    $ProgressBar.Visibility = 'Collapsed'
+    $ProgressLabel.Visibility = 'Collapsed'
+}
+
 function Add-Finding {
     param($Text, $State)   # State: ok | warn | bad | info
     $colors = @{ ok='#28C840'; warn='#FEBC2E'; bad='#FF5F57'; info='#007AFF' }
@@ -533,15 +560,26 @@ $BtnMin.Add_MouseLeftButtonUp({ $Window.WindowState = 'Minimized' })
 
 $BtnScan.Add_Click({
     $BtnScan.IsEnabled = $false
-    try { Invoke-Scan } finally { $BtnScan.IsEnabled = $true }
+    try {
+        Show-Progress 'Escaneando impresoras...'
+        Invoke-Scan
+    } finally {
+        Hide-Progress
+        $BtnScan.IsEnabled = $true
+    }
 })
 
 $BtnRepair.Add_Click({
     $BtnRepair.IsEnabled = $false
     try {
+        Show-Progress 'Reparando impresoras...'
         Invoke-Repair
+        Update-Progress 'Re-escaneando...'
         Invoke-Scan
-    } finally { $BtnRepair.IsEnabled = $true }
+    } finally {
+        Hide-Progress
+        $BtnRepair.IsEnabled = $true
+    }
 })
 
 $BtnSettings.Add_Click({
@@ -550,21 +588,30 @@ $BtnSettings.Add_Click({
 
 $BtnSpooler.Add_Click({
     $FooterText.Text = 'Reiniciando Spooler...'
+    Show-Progress 'Reiniciando Spooler...'
     try {
         Restart-Service -Name Spooler -Force
         $FooterText.Text = "Spooler reiniciado - $(Get-Date -Format 'HH:mm:ss')"
+        Update-Progress 'Re-escaneando...'
         Invoke-Scan
     } catch {
         $FooterText.Text = 'No se pudo reiniciar el Spooler (requiere permisos)'
+    } finally {
+        Hide-Progress
     }
 })
 
 $BtnCleanDriver.Add_Click({
     $BtnCleanDriver.IsEnabled = $false
     try {
+        Show-Progress 'Limpiando driver danado...'
         Invoke-CleanDamagedDriver
+        Update-Progress 'Re-escaneando...'
         Invoke-Scan
-    } finally { $BtnCleanDriver.IsEnabled = $true }
+    } finally {
+        Hide-Progress
+        $BtnCleanDriver.IsEnabled = $true
+    }
 })
 
 $BtnDriver.Add_Click({
@@ -572,7 +619,11 @@ $BtnDriver.Add_Click({
 })
 
 # ------------------------------------------------------- Inicio
-$Window.Add_Loaded({ Invoke-Scan })
+$Window.Add_Loaded({
+    Show-Progress 'Escaneando impresoras...'
+    Invoke-Scan
+    Hide-Progress
+})
 Write-Log 'Mostrando ventana principal'
 [void]$Window.ShowDialog()
 Write-Log 'Ventana cerrada normalmente'
