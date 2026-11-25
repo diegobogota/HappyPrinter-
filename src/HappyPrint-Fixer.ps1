@@ -103,11 +103,16 @@ $xamlText = @'
             <StackPanel Name="Findings"/>
           </Border>
 
-          <UniformGrid Columns="4" Margin="0,0,0,10">
+          <UniformGrid Columns="4" Margin="0,0,0,8">
             <Button Name="BtnScan" Content="Escanear" Background="#007AFF" Foreground="White" Margin="0,0,6,0"/>
             <Button Name="BtnRepair" Content="Reparar" Background="#34C759" Foreground="White" Margin="6,0"/>
             <Button Name="BtnSettings" Content="Config." Background="#E5E5EA" Foreground="#1D1D1D" Margin="6,0"/>
             <Button Name="BtnSpooler" Content="Spooler" Background="#E5E5EA" Foreground="#1D1D1D" Margin="6,0,0,0"/>
+          </UniformGrid>
+
+          <UniformGrid Columns="2" Margin="0,0,0,10">
+            <Button Name="BtnCleanDriver" Content="Limpiar driver danado" Background="#FF9500" Foreground="White" Margin="0,0,6,0"/>
+            <Button Name="BtnDriver" Content="Descargar driver" Background="#5856D6" Foreground="White" Margin="6,0,0,0"/>
           </UniformGrid>
         </StackPanel>
       </ScrollViewer>
@@ -151,6 +156,8 @@ $BtnMin     = $Window.FindName('BtnMin')
 $BtnScan    = $Window.FindName('BtnScan')
 $BtnSettings= $Window.FindName('BtnSettings')
 $BtnSpooler = $Window.FindName('BtnSpooler')
+$BtnCleanDriver = $Window.FindName('BtnCleanDriver')
+$BtnDriver  = $Window.FindName('BtnDriver')
 
 # ------------------------------------------------------- Utilidades UI
 function Add-Finding {
@@ -321,6 +328,74 @@ function Invoke-Repair {
     $FooterText.Text = "Reparacion completada - $(Get-Date -Format 'HH:mm:ss')"
 }
 
+# ------------------------------------------------------- Limpiar driver danado (admin)
+function Invoke-CleanDamagedDriver {
+    # Elimina la impresora Epson L14150 y su driver aunque esten en uso,
+    # para dejar el terreno limpio antes de reinstalar el driver oficial.
+    $FooterText.Text = 'Limpiando driver danado...'
+
+    $removed = 0
+
+    # 1. Eliminar las impresoras que usan drivers Epson L14150
+    $printers = Get-CimInstance -ClassName Win32_Printer
+    $lPrinters = @($printers | Where-Object { $_.Name -match $script:Modelo -or $_.DriverName -match $script:Modelo })
+    foreach ($printer in $lPrinters) {
+        try {
+            Remove-Printer -Name $printer.Name -ErrorAction Stop
+            Add-Finding -Text "Impresora eliminada: $($printer.Name)" -State 'ok'
+        } catch { }
+    }
+
+    # 2. Eliminar el driver Epson L14150 (aunque este en uso)
+    $drivers = Get-CimInstance -ClassName Win32_PrinterDriver | Where-Object { $_.Name -match $script:Modelo }
+    foreach ($driver in $drivers) {
+        try {
+            # Intento normal
+            Remove-PrinterDriver -Name $driver.Name -ErrorAction Stop
+            Add-Finding -Text "Driver desinstalado: $($driver.Name)" -State 'ok'
+        } catch {
+            # Intento forzado via PrintUI (elimina driver en uso)
+            try {
+                Start-Process -FilePath 'rundll32' `
+                    -ArgumentList @('printui.dll,PrintUIEntry', '/dd', "/n`"$($driver.Name)`"") `
+                    -Wait -WindowStyle Hidden
+                Add-Finding -Text "Driver forzado a eliminarse: $($driver.Name)" -State 'ok'
+            } catch {
+                Add-Finding -Text "No se pudo eliminar el driver: $($driver.Name)" -State 'bad'
+            }
+        }
+    }
+
+    # 3. Reiniciar Spooler para liberar referencias
+    try {
+        Restart-Service -Name Spooler -Force
+        Add-Finding -Text 'Spooler reiniciado (referencias liberadas)' -State 'ok'
+    } catch { }
+
+    # 4. Verificar resultado
+    $remaining = Get-CimInstance -ClassName Win32_PrinterDriver | Where-Object { $_.Name -match $script:Modelo }
+    if (-not $drivers -or @($drivers).Count -eq 0) {
+        Add-Finding -Text 'No habia driver Epson L14150 instalado' -State 'info'
+    } elseif (-not (Get-CimInstance -ClassName Win32_PrinterDriver | Where-Object { $_.Name -match $script:Modelo })) {
+        Add-Finding -Text 'Terreno limpio: ya puedes instalar el driver oficial' -State 'ok'
+    } else {
+        Add-Finding -Text 'Quedan referencias del driver: reinicia el equipo y reintenta' -State 'warn'
+    }
+    $FooterText.Text = "Limpieza de driver completada - $(Get-Date -Format 'HH:mm:ss')"
+}
+
+# ------------------------------------------------------- Descargar driver
+function Invoke-OpenDriverPage {
+    # Abre el Download Center de Epson para la L14150 en el navegador del usuario
+    $url = 'https://download-center.epson.com/softwares/?device_id=L14150+Series&region=GB&os=XP&language=en'
+    try {
+        Start-Process $url
+        $FooterText.Text = 'Abriendo pagina oficial de descarga de Epson...'
+    } catch {
+        $FooterText.Text = 'No se pudo abrir el navegador'
+    }
+}
+
 # ------------------------------------------------------- Escaneo
 function Invoke-Scan {
     $Findings.Children.Clear()
@@ -379,6 +454,18 @@ $BtnSpooler.Add_Click({
     } catch {
         $FooterText.Text = 'No se pudo reiniciar el Spooler (requiere permisos)'
     }
+})
+
+$BtnCleanDriver.Add_Click({
+    $BtnCleanDriver.IsEnabled = $false
+    try {
+        Invoke-CleanDamagedDriver
+        Invoke-Scan
+    } finally { $BtnCleanDriver.IsEnabled = $true }
+})
+
+$BtnDriver.Add_Click({
+    Invoke-OpenDriverPage
 })
 
 # ------------------------------------------------------- Inicio
