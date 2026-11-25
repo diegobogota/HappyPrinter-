@@ -172,6 +172,7 @@ $FooterText = $Window.FindName('FooterText')
 $BtnClose   = $Window.FindName('BtnClose')
 $BtnMin     = $Window.FindName('BtnMin')
 $BtnScan    = $Window.FindName('BtnScan')
+$BtnRepair  = $Window.FindName('BtnRepair')
 $BtnSettings= $Window.FindName('BtnSettings')
 $BtnSpooler = $Window.FindName('BtnSpooler')
 $BtnCleanDriver = $Window.FindName('BtnCleanDriver')
@@ -477,8 +478,8 @@ function Invoke-Scan {
 }
 
 # ------------------------------------------------------- Eventos
-$BtnClose.Add_Click({ $Window.Close() })
-$BtnMin.Add_Click({ $Window.WindowState = 'Minimized' })
+$BtnClose.Add_MouseLeftButtonUp({ $Window.Close() })
+$BtnMin.Add_MouseLeftButtonUp({ $Window.WindowState = 'Minimized' })
 
 $BtnScan.Add_Click({
     $BtnScan.IsEnabled = $false
