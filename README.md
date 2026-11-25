@@ -6,7 +6,7 @@ impresoras que fueron instaladas antes, se borraron o dejaron de funcionar.
 
 ## 📥 Descarga
 
-1. Entra a la página del repo en GitHub: `https://github.com/TU-USUARIO/HappyPrint`
+1. Entra a la página del repo en GitHub: **https://github.com/diegobogota/HappyPrinter-**
 2. Clic en el botón verde **`<> Code`** → **Download ZIP**
 3. Descomprime el ZIP en cualquier carpeta
 4. Abre la carpeta `src/` y haz clic derecho sobre `HappyPrint-Fixer.ps1` → **Ejecutar con PowerShell**
