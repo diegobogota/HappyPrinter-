@@ -366,13 +366,47 @@ function Invoke-CleanDamagedDriver {
         }
     }
 
-    # 3. Reiniciar Spooler para liberar referencias
+    # 3. Eliminar paquetes del DriverStore (restos .inf del driver danado)
+    $pnputilOutput = @(pnputil /enum-drivers 2>$null)
+    $infPackages = @()
+    $current = $null
+    foreach ($line in $pnputilOutput) {
+        if ($line -match 'Published Name:\s*(oem\d+\.inf)') {
+            if ($current) { $infPackages += $current }
+            $current = @{ Inf = $Matches[1] }
+        } elseif ($line -match 'Provider Name:\s*(.+)' -and $current) {
+            $current.Provider = $Matches[1].Trim()
+        } elseif ($line -match 'Original File Name:\s*(.+)' -and $current) {
+            $current.Original = $Matches[1].Trim()
+        }
+    }
+    if ($current) { $infPackages += $current }
+
+    $removedPackages = 0
+    foreach ($pkg in $infPackages) {
+        $isEpsonL = ($pkg.Original -match 'Epson' -or $pkg.Original -match $script:Modelo) -and
+                    ($pkg.Original -match $script:Modelo -or $pkg.Original -match 'L14150')
+        if ($isEpsonL) {
+            try {
+                Start-Process -FilePath 'pnputil' `
+                    -ArgumentList @('/delete-driver', $pkg.Inf, '/uninstall', '/force') `
+                    -Wait -WindowStyle Hidden
+                $removedPackages++
+                Add-Finding -Text "Paquete residual eliminado del DriverStore: $($pkg.Inf)" -State 'ok'
+            } catch { }
+        }
+    }
+    if ($removedPackages -eq 0) {
+        Add-Finding -Text 'DriverStore limpio: sin paquetes .inf residuales de la L14150' -State 'ok'
+    }
+
+    # 4. Reiniciar Spooler para liberar referencias
     try {
         Restart-Service -Name Spooler -Force
         Add-Finding -Text 'Spooler reiniciado (referencias liberadas)' -State 'ok'
     } catch { }
 
-    # 4. Verificar resultado
+    # 5. Verificar resultado
     $remaining = Get-CimInstance -ClassName Win32_PrinterDriver | Where-Object { $_.Name -match $script:Modelo }
     if (-not $drivers -or @($drivers).Count -eq 0) {
         Add-Finding -Text 'No habia driver Epson L14150 instalado' -State 'info'
