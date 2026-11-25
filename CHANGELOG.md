@@ -13,6 +13,22 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Detección mDNS/Bonjour para impresoras de red
 - Firma digital del instalador (elimina el aviso de SmartScreen)
 
+## [1.0.1] - 2026-11-24
+
+### Agregado
+
+- **Limpiar driver dañado** (botón naranja) — limpieza profunda en 5 pasos:
+  1. Elimina la impresora asociada al driver L14150
+  2. Desinstala el driver (intento normal + forzado via `printui.dll /dd`
+     cuando el driver está en uso)
+  3. Elimina paquetes `.inf` residuales del DriverStore de Windows
+     (`pnputil /delete-driver /uninstall /force`)
+  4. Reinicia el Spooler para liberar referencias
+  5. Verifica el resultado e informa si ya se puede instalar el driver oficial
+- **Descargar driver** (botón violeta) — abre el Download Center oficial de
+  Epson para la L14150 en el navegador del usuario
+- Segunda fila de botones en la interfaz para las nuevas funciones
+
 ## [1.0.0] - 2026-11-24
 
 ### Agregado
@@ -42,3 +58,4 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - El script `.ps1` siempre funciona como respaldo si el EXE falla.
 
 [1.0.0]: https://github.com/diegobogota/HappyPrinter-/releases/tag/v1.0.0
+[1.0.1]: https://github.com/diegobogota/HappyPrinter-/releases/tag/v1.0.1
