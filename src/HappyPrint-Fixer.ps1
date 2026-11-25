@@ -239,6 +239,25 @@ function Get-PrinterReport {
         $report += @{ Text='No hay impresoras Epson instaladas'; State='warn' }
     }
 
+    # Impresora en puerto WSD sin driver (DIRECT-a3-... / controlador no disponible)
+    $script:WsdNoDriver = $false
+    $allDrivers = @(Get-CimInstance -ClassName Win32_PrinterDriver)
+    foreach ($p in $script:L14150Printers) {
+        if ($p.PortName -match '^DIRECT-|^WSD-') {
+            $drvName = $p.DriverName
+            $hasDriver = $false
+            foreach ($d in $allDrivers) {
+                if ($d.Name -eq $drvName) { $hasDriver = $true; break }
+            }
+            if (-not $hasDriver) {
+                $report += @{ Text="PROBLEMA DETECTADO: la impresora esta en el puerto WSD '$($p.PortName)' pero su controlador no esta disponible (rastro de instalacion automatica fallida de Windows)"; State='bad' }
+                $script:WsdNoDriver = $true
+            } else {
+                $report += @{ Text="Impresora en puerto WSD '$($p.PortName)' con driver instalado (funcional, aunque se recomienda puerto USB nativo)"; State='warn' }
+            }
+        }
+    }
+
     # Puertos huerfanos
     $ports = Get-CimInstance -ClassName Win32_TCPIPPrinterPort
     $usedPortNames = @($printers | ForEach-Object { $_.PortName })
@@ -318,6 +337,32 @@ function Invoke-Repair {
     }
     if ($removedPorts -gt 0) {
         Add-Finding -Text "Puertos huerfanos eliminados: $removedPorts" -State 'ok'
+    }
+
+    # 2b. Reparacion dirigida: impresora WSD sin driver (DIRECT-a3-... / controlador no disponible)
+    if ($script:WsdNoDriver) {
+        Add-Finding -Text 'Reparando impresora WSD sin controlador...' -State 'info'
+        # Elimina la impresora rota (quedara el puerto WSD huerfano, se limpia abajo)
+        foreach ($p in @($script:L14150Printers | Where-Object { $_.PortName -match '^DIRECT-|^WSD-' })) {
+            try {
+                Remove-Printer -Name $p.Name -ErrorAction Stop
+                Add-Finding -Text "Impresora rota eliminada: $($p.Name)" -State 'ok'
+            } catch {
+                # Forzado via PrintUI si el normal falla
+                try {
+                    Start-Process -FilePath 'rundll32' `
+                        -ArgumentList @('printui.dll,PrintUIEntry', '/dl', "/n`"$($p.Name)`"") `
+                        -Wait -WindowStyle Hidden
+                    Add-Finding -Text "Impresora rota eliminada (forzado): $($p.Name)" -State 'ok'
+                } catch { }
+            }
+        }
+        # Reinicia el Spooler para liberar referencias del driver fantasma
+        try {
+            Restart-Service -Name Spooler -Force
+            Add-Finding -Text 'Spooler reiniciado (referencias del driver fantasma liberadas)' -State 'ok'
+        } catch { }
+        Add-Finding -Text 'Terreno limpio: instala el driver oficial (boton Descargar driver) y vuelve a Escanear' -State 'ok'
     }
 
     # 3. Desinstalar drivers Epson residuales (sin impresora asociada)
@@ -457,6 +502,11 @@ function Invoke-Scan {
 
     $report = Get-PrinterReport
     foreach ($item in $report) { Add-Finding -Text $item.Text -State $item.State }
+
+    # Estado dirigido: WSD sin driver tiene prioridad visual
+    if ($script:WsdNoDriver) {
+        Set-Status -Title "Epson $script:Modelo SIN controlador" -Sub 'Clic en Reparar para limpiar, luego Descargar driver' -Color '#FF5F57'
+    }
 
     $FooterText.Text = 'Escaneando red local...'
     if (Test-NetworkPrinter) {
