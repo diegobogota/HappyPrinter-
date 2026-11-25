@@ -19,18 +19,35 @@ param()
 
 $ErrorActionPreference = 'SilentlyContinue'
 
+# ------------------------------------- Log de diagnostico
+# Si la app no abre, este archivo explica por que: %TEMP%\HappyPrint-Fixer.log
+$script:LogFile = Join-Path $env:TEMP 'HappyPrint-Fixer.log'
+function Write-Log {
+    param($Message)
+    try {
+        Add-Content -Path $script:LogFile -Value ("{0} {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message) -ErrorAction Stop
+    } catch { }
+}
+Write-Log '=== Inicio HappyPrint-Fixer ==='
+
 # ------------------------------------- Elevacion automatica a administrador
 # Las funciones de reparacion (limpiar puertos/drivers) requieren admin.
 # Si no estamos elevados, relanzamos el script con UAC.
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log 'No es admin: relanzando con UAC'
     Start-Process -FilePath 'powershell.exe' `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f $PSCommandPath)) `
         -Verb RunAs
+    Write-Log 'Proceso original terminado (el elevado continua)'
     exit
 }
+Write-Log 'Ejecutandose como administrador'
+
+try {
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+Write-Log 'Ensamblados WPF cargados'
 
 $script:Modelo   = 'L14150'
 $script:VidEpson = 'VID_04B8'
@@ -144,6 +161,7 @@ function Add-WindowIcon {
 $xamlReader = New-Object System.Xml.XmlNodeReader -ArgumentList ([xml]$xamlText)
 $Window = [Windows.Markup.XamlReader]::Load($xamlReader)
 Add-WindowIcon -Window $Window
+Write-Log 'XAML cargado y ventana creada'
 
 # Controles
 $Findings   = $Window.FindName('Findings')
@@ -504,4 +522,21 @@ $BtnDriver.Add_Click({
 
 # ------------------------------------------------------- Inicio
 $Window.Add_Loaded({ Invoke-Scan })
+Write-Log 'Mostrando ventana principal'
 [void]$Window.ShowDialog()
+Write-Log 'Ventana cerrada normalmente'
+
+} catch {
+    # ------------------------------------- Ventana de error visible
+    # Si algo falla, el usuario ve el motivo en vez de un cierre silencioso
+    Write-Log ("ERROR FATAL: {0}" -f $_.Exception.Message)
+    Write-Log ("ERROR en linea: {0}" -f $_.InvocationInfo.ScriptLineNumber)
+    $errorMsg = "No se pudo iniciar HappyPrint.`n`nCausa: {0}`nLinea: {1}`n`nEl detalle tecnico quedo guardado en:`n{2}" -f `
+        $_.Exception.Message, $_.InvocationInfo.ScriptLineNumber, $script:LogFile
+    try {
+        [System.Windows.MessageBox]::Show($errorMsg, 'HappyPrint - Error', 'OK', 'Error') | Out-Null
+    } catch {
+        # Ultimo recurso: notepad con el log
+        Start-Process notepad -ArgumentList $script:LogFile
+    }
+}
