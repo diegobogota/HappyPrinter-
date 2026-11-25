@@ -55,6 +55,21 @@ También puedes lanzar el build manualmente: pestaña **Actions** →
 - Descarga el ZIP en una PC con Windows 11 y prueba la app de punta a punta
 - Verifica que el aviso UAC aparece y que el modo reparacion funciona
 
+## 5. Falsos positivos de antivirus (importante)
+
+Los EXE generados con ps2exe suelen disparar antivirus (falso positivo). Para
+reducirlo:
+
+1. **Reporta el falso positivo a Microsoft** (toma 1-2 dias en aplicarse):
+   https://www.microsoft.com/en-us/wdsi/filesubmission
+   - Selecciona "Software developer", indica que es un falso positivo
+   - Adjunta el `HappyPrint.exe` del Release
+2. **Alternativa sin EXE:** el metodo principal del README es el script `.ps1`
+   (no dispara antivirus). Los EXE quedan como opcion secundaria.
+3. **Solucion definitiva (si el proyecto crece):** certificado de firma de
+   codigo (~$200-400/anio, ej. Certum, Sectigo). Elimina SmartScreen y la
+   mayoria de los avisos.
+
 ## Notas
 
 - El nombre visible del repo puede ser `HappyPrint` aunque la carpeta local se llame distinto.

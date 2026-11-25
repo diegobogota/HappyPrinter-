@@ -8,24 +8,15 @@ impresoras que fueron instaladas antes, se borraron o dejaron de funcionar.
 
 Tienes 3 formas de instalar la app:
 
-### Opción 1 — Instalador (recomendado)
+### Opción 1 — Script PowerShell (recomendado)
 
-1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
-2. Descarga **`HappyPrint-Setup.exe`** (instalador con asistente)
-3. Ejecuta el instalador: crea accesos directos y deja la app lista en `C:\Program Files\HappyPrint`
-
-### Opción 2 — EXE portable (sin instalación)
-
-1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
-2. Descarga **`HappyPrint.exe`** (un solo archivo, no requiere instalación)
-3. Haz doble clic para ejecutarlo
-
-### Opción 3 — Script PowerShell
+> ✅ Este método **no dispara antivirus** ni SmartScreen.
 
 1. Entra a la página del repo en GitHub: **https://github.com/diegobogota/HappyPrinter-**
 2. Clic en el botón verde **`<> Code`** → **Download ZIP**
 3. Descomprime el ZIP en cualquier carpeta
 4. Abre la carpeta `src/` y haz clic derecho sobre `HappyPrint-Fixer.ps1` → **Ejecutar con PowerShell**
+5. Acepta el aviso de UAC (es necesario para poder reparar)
 
 > 💡 Si Windows bloquea la ejecución del script, abre PowerShell y ejecuta una vez:
 >
@@ -33,9 +24,26 @@ Tienes 3 formas de instalar la app:
 > Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 > ```
 
-> ⚠️ **Nota sobre el EXE:** Windows SmartScreen puede mostrar un aviso al ejecutar
-> el `.exe` por primera vez (no está firmado digitalmente). Clic en **Más información**
-> → **Ejecutar de todas formas**.
+### Opción 2 — Instalador
+
+1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
+2. Descarga **`HappyPrint-Setup.exe`** (instalador con asistente)
+3. Ejecuta el instalador: crea accesos directos y deja la app lista en `C:\Program Files\HappyPrint`
+
+### Opción 3 — EXE portable (sin instalación)
+
+1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
+2. Descarga **`HappyPrint.exe`** (un solo archivo, no requiere instalación)
+3. Haz doble clic para ejecutarlo
+
+> ⚠️ **Aviso sobre el EXE:** algunos antivirus pueden marcar el `.exe` como
+> sospechoso. Es un **falso positivo**: el EXE es un script PowerShell
+> empaquetado, y los antivirus son sensibles a esa técnica. Es 100% seguro:
+> el código es público y auditable en este repositorio.
+>
+> Si tu antivirus lo bloquea:
+> - **Windows Defender:** clic en el aviso → **Más información** → **Ejecutar de todas formas**
+> - **Otro antivirus:** agrega una excepción para el archivo, o usa la Opción 1 (script), que no tiene este problema
 
 ## Autoría
 
