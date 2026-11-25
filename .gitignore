@@ -1,0 +1,19 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Entornos y temporales
+.coda/
+tmp/
+tmp-assets/
+*.tmp
+*.log
+
+# Archivos de PowerShell generados
+*.ps1xml
+
+# Editor
+.vscode/
+.idea/
+.coda
