@@ -29,20 +29,25 @@ git push -u origin main
 
 ## 3. Crear un Release (recomendado)
 
-Para que los usuarios descarguen un ZIP limpio con un solo clic:
+Al crear un tag `v*` y publicarlo, GitHub Actions compila automáticamente el
+`.exe` y el instalador, y los adjunta al Release. No necesitas compilar nada
+en tu Mac.
 
-1. En el repo: **Releases** → **Create a new release**
-2. **Tag:** `v1.0.0`
-3. **Title:** `HappyPrint v1.0.0`
-4. **Description:**
-   ```
-   Primera version publica.
-   - Deteccion completa de impresoras Epson (USB, red, rastros)
-   - Modo reparacion con un clic (puertos huerfanos, drivers residuales, Spooler)
-   - Interfaz estilo macOS para Windows 11
-   ```
-5. Opcional: adjunta un ZIP con solo `src/HappyPrint-Fixer.ps1` + `assets/`
-6. Clic en **Publish release**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+O desde la web del repo: **Releases** → **Draft a new release** →
+**Choose a tag** → escribe `v1.0.0` → **Publish release**.
+
+Después de 2-5 minutos, el Release tendrá estos archivos listos para usuarios:
+
+- `HappyPrint-Setup.exe` — instalador con asistente (recomendado para usuarios)
+- `HappyPrint.exe` — portable, sin instalación
+
+También puedes lanzar el build manualmente: pestaña **Actions** →
+**Build Windows EXE e Instalador** → **Run workflow**.
 
 ## 4. Verificar
 

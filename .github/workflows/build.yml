@@ -1,0 +1,111 @@
+name: Build Windows EXE e Instalador
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar modulo ps2exe
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force
+
+      - name: Compilar HappyPrint.exe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path build -Force | Out-Null
+          Invoke-ps2exe `
+            -inputFile  'src/HappyPrint-Fixer.ps1' `
+            -outputFile 'build/HappyPrint.exe' `
+            -iconFile   'assets/PrintHappy.ico' `
+            -title      'HappyPrint - Fixer Epson Printer' `
+            -company    'www.aleluia.tech' `
+            -product    'HappyPrint' `
+            -description 'Detecta y repara impresoras Epson en Windows 11' `
+            -version    '1.0.0.0' `
+            -requireAdmin `
+            -noConsole
+          Write-Host "EXE generado:"
+          Get-Item build/HappyPrint.exe | Select-Object Name, Length
+
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Preparar archivos del instalador
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path 'installer/app' -Force | Out-Null
+          Copy-Item 'build/HappyPrint.exe' 'installer/app/'
+          Copy-Item 'README.md' 'installer/app/'
+
+      - name: Compilar instalador con Inno Setup
+        shell: pwsh
+        run: |
+          $iss = @'
+          [Setup]
+          AppName=HappyPrint - Fixer Epson Printer
+          AppVersion=1.0.0
+          AppPublisher=www.aleluia.tech
+          DefaultDirName={autopf}\HappyPrint
+          DefaultGroupName=HappyPrint
+          UninstallDisplayIcon={app}\HappyPrint.exe
+          OutputDir=.
+          OutputBaseFilename=HappyPrint-Setup
+          SetupIconFile=..\assets\PrintHappy.ico
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=admin
+          DisableProgramGroupPage=yes
+
+          [Files]
+          Source: "app\HappyPrint.exe"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "app\README.md"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Icons]
+          Name: "{group}\HappyPrint"; Filename: "{app}\HappyPrint.exe"
+          Name: "{autodesktop}\HappyPrint"; Filename: "{app}\HappyPrint.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Crear acceso directo en el escritorio"; GroupDescription: "Accesos directos:"
+
+          [Run]
+          Filename: "{app}\HappyPrint.exe"; Description: "Ejecutar HappyPrint ahora"; Flags: nowait postinstall skipifsilent
+          '@
+          Set-Content -Path 'installer/HappyPrint.iss' -Value $iss
+          & iscc 'installer\HappyPrint.iss'
+          Write-Host "Instalador generado:"
+          Get-ChildItem 'installer' -Filter '*.exe' | Select-Object Name, Length
+
+      - name: Subir artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: HappyPrint-build
+          path: |
+            build/HappyPrint.exe
+            installer/HappyPrint-Setup.exe
+
+      - name: Adjuntar al Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/HappyPrint.exe
+            installer/HappyPrint-Setup.exe

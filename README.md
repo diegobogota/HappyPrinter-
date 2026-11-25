@@ -6,17 +6,36 @@ impresoras que fueron instaladas antes, se borraron o dejaron de funcionar.
 
 ## 📥 Descarga
 
+Tienes 3 formas de instalar la app:
+
+### Opción 1 — Instalador (recomendado)
+
+1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
+2. Descarga **`HappyPrint-Setup.exe`** (instalador con asistente)
+3. Ejecuta el instalador: crea accesos directos y deja la app lista en `C:\Program Files\HappyPrint`
+
+### Opción 2 — EXE portable (sin instalación)
+
+1. Entra a **https://github.com/diegobogota/HappyPrinter-/releases**
+2. Descarga **`HappyPrint.exe`** (un solo archivo, no requiere instalación)
+3. Haz doble clic para ejecutarlo
+
+### Opción 3 — Script PowerShell
+
 1. Entra a la página del repo en GitHub: **https://github.com/diegobogota/HappyPrinter-**
 2. Clic en el botón verde **`<> Code`** → **Download ZIP**
 3. Descomprime el ZIP en cualquier carpeta
 4. Abre la carpeta `src/` y haz clic derecho sobre `HappyPrint-Fixer.ps1` → **Ejecutar con PowerShell**
-5. Windows mostrará el aviso de **UAC** (control de cuentas de usuario): acepta — es necesario para poder reparar
 
-> 💡 Si Windows bloquea la ejecución, abre PowerShell y ejecuta una vez:
+> 💡 Si Windows bloquea la ejecución del script, abre PowerShell y ejecuta una vez:
 >
 > ```powershell
 > Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 > ```
+
+> ⚠️ **Nota sobre el EXE:** Windows SmartScreen puede mostrar un aviso al ejecutar
+> el `.exe` por primera vez (no está firmado digitalmente). Clic en **Más información**
+> → **Ejecutar de todas formas**.
 
 ## Autoría
 
