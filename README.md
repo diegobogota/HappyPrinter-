@@ -8,7 +8,25 @@ impresoras que fueron instaladas antes, se borraron o dejaron de funcionar.
 
 Tienes 3 formas de instalar la app:
 
-### Opción 1 — Script PowerShell (recomendado)
+### Opción 0 — Un solo comando (la más rápida)
+
+> ✅ Descarga el script directamente de la rama `main` y lo ejecuta.
+> Sin ZIP, sin EXE, sin avisos de antivirus.
+
+Abre **PowerShell** y pega:
+
+```powershell
+$dest = "$env:TEMP\HappyPrint-Fixer.ps1"
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/diegobogota/HappyPrinter-/main/src/HappyPrint-Fixer.ps1' -OutFile $dest
+Start-Process powershell -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File', $dest) -Verb RunAs
+```
+
+Se abrirá el aviso de UAC: acepta y la app arranca con permisos de reparación.
+
+> 💡 El script se descarga siempre de la rama `main`, así que obtienes la
+> última versión con todas las funciones sin esperar un Release.
+
+### Opción 1 — Script PowerShell (ZIP del repo)
 
 > ✅ Este método **no dispara antivirus** ni SmartScreen.
 
